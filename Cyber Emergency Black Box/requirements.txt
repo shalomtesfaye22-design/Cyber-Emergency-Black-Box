@@ -1,0 +1,29 @@
+# Cyber Emergency Black Box — Python dependencies
+# Install with: pip install -r requirements.txt
+
+# Web framework
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+
+# Database
+sqlalchemy==2.0.30
+aiosqlite==0.20.0
+
+# Data validation
+pydantic==2.7.1
+pydantic-settings==2.2.1
+
+# System monitoring
+psutil==5.9.8
+watchdog==4.0.0
+
+# HTML report templating
+jinja2==3.1.4
+
+# Testing
+pytest==8.2.1
+pytest-asyncio==0.23.7
+httpx==0.27.0
+
+# Optional: Windows Event Log / WMI (Windows only, install manually if needed)
+# pywin32==306
