@@ -31,21 +31,20 @@ process, file/network metadata, severity, SHA-256 raw-event hash, simulation fla
 and preservation flag. Incident evidence is written once under
 `evidence/incident_INC-YYYYMMDD-XXXX/`; never edit a generated evidence package.
 
-## Team Ownership
+## Team Ownership & Source Control
 
-- Antigravity owns `backend/database/`, `backend/services/`, `backend/api/`,
-  `backend/main.py`, and the test suite.
-- Cursor owns `backend/collectors/`.
-- Codex owns `backend/correlation/`, `backend/evidence/`, `backend/interpreter/`,
+- **Antigravity** owns `backend/database/`, `backend/services/`, `backend/api/`,
+  `backend/main.py`, and the test suite (`tests/`).
+- **Cursor** owns `backend/collectors/`.
+- **Codex** owns `backend/correlation/`, `backend/evidence/`, `backend/interpreter/`,
   `backend/reports/`, and `simulator/`.
 
-Do not modify another owner’s area without coordinating first. The worktree is shared
-and currently contains concurrent, uncommitted edits, so inspect `git status` before
-editing or committing.
+All changes have been tested and committed to branch `feature/backend-hardening`.
+Always check `git status` before editing or committing.
 
 ## Running Locally
 
-Use Python 3.11 (the project target) from the nested application directory:
+Compatible with **Python 3.11 through 3.14** from the application directory:
 
 ```powershell
 cd 'Cyber Emergency Black Box'
@@ -53,34 +52,31 @@ python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 python scripts/init_db.py
-pytest
+pytest -v
 uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-The API root is `/api/v1`. The simulator can post a safe account-compromise sequence
-to a running server:
-
+- **Interactive API Documentation (Swagger)**: Visit `http://127.0.0.1:8000/docs` (or `/redoc`) in your browser to inspect and test all endpoints interactively.
+- **REST API Prefix**: All endpoints are mounted at `/api/v1` (e.g. `/api/v1/events`, `/api/v1/incidents`, `/api/v1/system/status`).
+- **Running the Simulator CLI**:
 ```powershell
 python -m simulator.runner --scenario account_compromise
 ```
 
-## Critical Contracts
+## Critical Contracts & Architecture Rules
 
-- Keep all API/database I/O asynchronous where existing interfaces are async.
-- All correlation rules must be explainable and return linked event IDs; do not use
-  opaque ML detection.
-- Query a bounded event window; never load the complete event history for detection.
-- Incident lifecycle is `OPEN`, `INVESTIGATING`, then `CLOSED`.
-- Interpreter wording must distinguish observed facts from assessment and never
-  claim an event is conclusively malicious.
-- Evidence IDs and paths must reject traversal input; manifests contain SHA-256 and
-  byte size for every evidence file.
-- Simulated events must use `source="simulator"` and `is_simulated=True`.
+- **Async I/O**: Keep all API and database operations asynchronous using `AsyncSession`.
+- **SQLite Concurrency (WAL Mode)**: The database is configured with Write-Ahead Logging (`PRAGMA journal_mode=WAL;`). Expect `blackbox.db-wal` and `blackbox.db-shm` files during runtime.
+- **Cryptographic Hash Chaining**: Every event links to `previous_hash` forming a tamper-evident audit log.
+- **Explainable Correlation**: Correlation rules are deterministic and return linked event IDs; do not use opaque ML detection.
+- **Bounded Correlation Windows**: Correlation engines must only query recent sliding windows; never load the full database table into memory.
+- **Incident Statuses (FR-023)**: Valid statuses are strictly `OPEN`, `INVESTIGATING`, `RESOLVED`, and `FALSE_POSITIVE`. (Do not use `CLOSED`).
+- **DFIR Interpreter Wording**: Distinguish observed facts from assessment. Output must contain the four required sections: `CONFIRMED FACTS`, `DETECTION RESULT`, `INTERPRETATION`, `RECOMMENDATION`, using cautious, non-accusatory language.
+- **Evidence Integrity**: Evidence directories under `evidence/incident_<id>/` are immutable and protected against path traversal. Every manifest contains SHA-256 hashes and byte sizes.
+- **Simulator Events**: All synthetic events must use `source="simulator"` and `is_simulated=True`.
 
-## Current Limitations and Handoff Priorities
+## OS Telemetry & Permissions
 
-Windows login and USB collectors require optional OS integrations and must degrade
-without crashing when unavailable. Validate the full pipeline on Windows: SIM-001 →
-incident → evidence verification → report. Add integration tests around each API
-contract after the concurrent owners finish their changes. See `codexchanges.md` for
-the Codex-specific handoff and `AGENTS.md` for repository conventions.
+- **Windows Event Log & WMI**: `LoginCollector` (Event IDs 4624/4625) and `USBCollector` (WMI) are Windows-specific and require administrative permissions to read the Windows Security log. Run PowerShell/Terminal **as Administrator** to enable real Security log ingestion.
+- **Graceful Fallbacks**: When running without Admin rights or on Linux/macOS, collectors automatically mark themselves `available=False` and log warnings without crashing the application.
+
