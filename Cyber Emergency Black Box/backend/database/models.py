@@ -25,8 +25,13 @@ class EventModel(Base):
     metadata_json: Mapped[str] = mapped_column("metadata", Text, default="{}")
     severity: Mapped[str] = mapped_column(String, default="INFO", index=True)
     raw_hash: Mapped[str | None] = mapped_column(String)
+    previous_hash: Mapped[str | None] = mapped_column(String, nullable=True)
     is_simulated: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     preserved: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    __table_args__ = (
+        Index("idx_events_timestamp_type", "timestamp", "event_type"),
+    )
 
 
 class IncidentModel(Base):
