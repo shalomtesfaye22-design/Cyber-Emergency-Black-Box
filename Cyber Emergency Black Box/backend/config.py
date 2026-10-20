@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     # Application metadata
     # ------------------------------------------------------------------
     app_name: str = "Cyber Emergency Black Box"
+    project_root: Path = PROJECT_ROOT
     app_version: str = "1.0.0"
     app_description: str = (
         "A lightweight endpoint incident-response and digital-forensics assistant. "

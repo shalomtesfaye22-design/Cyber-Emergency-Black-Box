@@ -54,12 +54,119 @@ async def test_create_and_list_events(client: httpx.AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_incidents_api_workflow(client: httpx.AsyncClient):
-    """Test incident listing and status patching via API."""
-    # First, list incidents (should be empty initially)
+async def test_incidents_api_workflow(client: httpx.AsyncClient, db_session):
+    """Test full incident workflow: listing, get by id, patch status, timeline, and report."""
+    from backend.database import crud
+
+    # 1. List initially
     list_resp = await client.get("/api/v1/incidents")
     assert list_resp.status_code == 200
     assert isinstance(list_resp.json()["data"], list)
+
+    # 2. Insert test incident and linked event
+    now = datetime.now(timezone.utc)
+    incident_id = "INC-API-TEST-001"
+    await crud.insert_incident(
+        db_session,
+        {
+            "incident_id": incident_id,
+            "detection_time": now,
+            "rule_id": "R-01",
+            "rule_name": "Test Api Rule",
+            "severity": "HIGH",
+            "status": "OPEN",
+            "summary": "Integration incident test",
+            "event_count": 1,
+            "interpretation": {"confirmed_facts": ["Fact 1"], "detection_result": "Detection", "interpretation": "Interp", "recommendations": ["Rec 1"], "disclaimer": "Disclaimer"},
+        },
+    )
+    await crud.insert_event(
+        db_session,
+        {
+            "event_id": "api-inc-event-01",
+            "timestamp": now,
+            "event_type": "login_failure",
+            "source": "api_test",
+            "user_name": "bob",
+        },
+    )
+    await crud.link_events_to_incident(db_session, incident_id, ["api-inc-event-01"])
+
+    # 3. Retrieve incident detail
+    detail_resp = await client.get(f"/api/v1/incidents/{incident_id}")
+    assert detail_resp.status_code == 200
+    detail = detail_resp.json()["data"]
+    assert detail["incident_id"] == incident_id
+    assert detail["severity"] == "HIGH"
+    assert len(detail["events"]) == 1
+
+    # 4. Patch incident status
+    patch_resp = await client.patch(
+        f"/api/v1/incidents/{incident_id}",
+        json={"status": "INVESTIGATING"},
+    )
+    assert patch_resp.status_code == 200
+    assert patch_resp.json()["data"]["status"] == "INVESTIGATING"
+
+    # 5. Get timeline
+    timeline_resp = await client.get(f"/api/v1/incidents/{incident_id}/timeline")
+    assert timeline_resp.status_code == 200
+    assert isinstance(timeline_resp.json()["data"], list)
+
+    # 6. Get printable HTML report
+    report_resp = await client.get(f"/api/v1/incidents/{incident_id}/report")
+    assert report_resp.status_code == 200
+    assert "text/html" in report_resp.headers["content-type"]
+    assert incident_id in report_resp.text
+
+    # 7. Preserve evidence package and test evidence endpoints
+    import shutil
+    from pathlib import Path
+    from backend.evidence.manager import EvidenceManager
+    mgr = EvidenceManager()
+    folder_str = await mgr.preserve(db_session, incident_id)
+    folder = Path(folder_str)
+
+    try:
+        # 7a. Get manifest
+        ev_resp = await client.get(f"/api/v1/incidents/{incident_id}/evidence")
+        assert ev_resp.status_code == 200
+        assert ev_resp.json()["data"]["incident_id"] == incident_id
+
+        # 7b. Verify evidence
+        verify_resp = await client.get(f"/api/v1/incidents/{incident_id}/evidence/verify")
+        assert verify_resp.status_code == 200
+        assert verify_resp.json()["data"]["valid"] is True
+
+        # 7c. Download evidence ZIP
+        dl_resp = await client.get(f"/api/v1/incidents/{incident_id}/evidence/download")
+        assert dl_resp.status_code == 200
+        assert dl_resp.headers["content-type"] == "application/zip"
+        assert len(dl_resp.content) > 0
+    finally:
+        if folder.exists():
+            shutil.rmtree(folder, ignore_errors=True)
+        zip_file = folder.with_suffix(".zip")
+        if zip_file.exists():
+            zip_file.unlink(missing_ok=True)
+
+    # 8. Non-existent incident -> 404
+    missing_resp = await client.get("/api/v1/incidents/INC-NON-EXISTENT")
+    assert missing_resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_simulator_endpoints(client: httpx.AsyncClient):
+    """Test simulator scenario listing and triggering."""
+    # List scenarios
+    list_resp = await client.get("/api/v1/simulator/scenarios")
+    assert list_resp.status_code == 200
+    assert "account_compromise" in list_resp.json()["data"]
+
+    # Trigger scenario
+    run_resp = await client.post("/api/v1/simulator/run")
+    assert run_resp.status_code == 200
+    assert run_resp.json()["data"]["started"] is True
 
 
 @pytest.mark.asyncio

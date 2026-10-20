@@ -47,7 +47,7 @@ class EventCreate(BaseModel):
     @classmethod
     def enforce_utc_timezone(cls, v: datetime) -> datetime:
         if v.tzinfo is None:
-            raise ValueError("timestamp must include UTC timezone")
+            return v.replace(tzinfo=timezone.utc)
         return v.astimezone(timezone.utc)
 
     @field_validator("event_type")
@@ -94,6 +94,8 @@ def event_dict(item: Any) -> dict[str, Any]:
 
     ts = item.timestamp
     if isinstance(ts, datetime):
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
         ts = ts.isoformat()
 
     return {

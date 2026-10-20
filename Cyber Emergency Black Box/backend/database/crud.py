@@ -106,7 +106,10 @@ async def get_event_by_id(session: AsyncSession, event_id: str) -> EventModel | 
 
 async def insert_incident(session: AsyncSession, data: dict[str, Any]) -> IncidentModel:
     """Create a new incident record."""
-    obj = IncidentModel(**data)
+    payload = dict(data)
+    if isinstance(payload.get("interpretation"), (dict, list)):
+        payload["interpretation"] = json.dumps(payload["interpretation"], default=str)
+    obj = IncidentModel(**payload)
     session.add(obj)
     await session.commit()
     await session.refresh(obj)
