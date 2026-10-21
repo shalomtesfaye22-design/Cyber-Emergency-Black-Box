@@ -73,4 +73,12 @@ async def get_incident_report(incident_id: str, db: AsyncSession = Depends(get_d
         manifest = EvidenceManager().get_manifest(incident_id)
     except Exception:
         manifest = {"files": {}}
-    return generate_html_report(item, events, item.interpretation or "", manifest)
+    snapshot = await crud.get_latest_system_snapshot(db)
+    system = {} if snapshot is None else {
+        "hostname": snapshot.hostname,
+        "os_name": snapshot.os_name,
+        "os_version": snapshot.os_version,
+        "captured_at": snapshot.captured_at.isoformat() if snapshot.captured_at else None,
+        "uptime_seconds": snapshot.uptime_seconds,
+    }
+    return generate_html_report(item, events, item.interpretation or "", manifest, system=system)

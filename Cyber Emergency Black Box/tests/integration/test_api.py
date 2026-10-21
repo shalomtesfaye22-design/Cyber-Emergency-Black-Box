@@ -113,11 +113,22 @@ async def test_incidents_api_workflow(client: httpx.AsyncClient, db_session):
     assert timeline_resp.status_code == 200
     assert isinstance(timeline_resp.json()["data"], list)
 
-    # 6. Get printable HTML report
+    # 6. Insert snapshot and get printable HTML report
+    await crud.insert_system_snapshot(
+        db_session,
+        {
+            "hostname": "test-forensic-box",
+            "os_name": "Windows",
+            "os_version": "11.0",
+            "uptime_seconds": 3600,
+            "captured_at": now,
+        },
+    )
     report_resp = await client.get(f"/api/v1/incidents/{incident_id}/report")
     assert report_resp.status_code == 200
     assert "text/html" in report_resp.headers["content-type"]
     assert incident_id in report_resp.text
+    assert "test-forensic-box" in report_resp.text
 
     # 7. Preserve evidence package and test evidence endpoints
     import shutil

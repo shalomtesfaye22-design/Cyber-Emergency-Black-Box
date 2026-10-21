@@ -29,6 +29,26 @@ def test_account_compromise_rule_fires():
     assert AccountCompromiseRule().evaluate(rows)
 
 
+def test_account_compromise_requires_follow_up_within_full_sequence_window():
+    rows = [event("login_failure", i, user_name="a") for i in range(3)]
+    rows += [event("login_success", 4, user_name="a"), event("process_start", 601, user_name="a")]
+    assert AccountCompromiseRule().evaluate(rows) is None
+
+    rows[-1] = event("process_start", 599, user_name="a")
+    assert AccountCompromiseRule().evaluate(rows) is not None
+
+
+def test_suspicious_process_requires_process_attribution():
+    rule = SuspiciousProcessRule()
+    rows = [
+        event("process_start", 0),
+        event("file_modified", 1, process_name="unknown.exe"),
+        event("file_created", 2, process_name="unknown.exe"),
+        event("network_connection", 3, process_name="unknown.exe"),
+    ]
+    assert rule.evaluate(rows) is None
+
+
 def test_file_activity_requires_five_events():
     assert not FileActivityRule().evaluate([event("file_modified", i) for i in range(4)])
     assert FileActivityRule().evaluate([event("file_modified", i) for i in range(5)])

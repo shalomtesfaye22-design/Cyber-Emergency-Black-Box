@@ -99,6 +99,15 @@ async def event_count(session: AsyncSession) -> int:
     return await session.scalar(select(func.count()).select_from(EventModel)) or 0
 
 
+async def get_event_counts_by_type(session: AsyncSession) -> dict[str, int]:
+    """Return event totals grouped by type using a database-side aggregate."""
+    rows = await session.execute(
+        select(EventModel.event_type, func.count(EventModel.event_id))
+        .group_by(EventModel.event_type)
+    )
+    return {event_type: int(count) for event_type, count in rows.all()}
+
+
 async def get_event_by_id(session: AsyncSession, event_id: str) -> EventModel | None:
     """Retrieve an event by its unique UUID."""
     return await session.get(EventModel, event_id)
@@ -203,6 +212,9 @@ async def update_settings(session: AsyncSession, values: dict[str, Any]) -> dict
 async def insert_system_snapshot(session: AsyncSession, data: dict[str, Any]) -> SystemSnapshotModel:
     """Save a system information snapshot."""
     payload = dict(data)
+    if not payload.get("snapshot_id"):
+        import uuid
+        payload["snapshot_id"] = str(uuid.uuid4())
     payload["metadata_json"] = json.dumps(payload.pop("metadata", {}), default=str)
     obj = SystemSnapshotModel(**payload)
     session.add(obj)

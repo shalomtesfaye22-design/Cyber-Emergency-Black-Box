@@ -1,0 +1,9 @@
+# Root .gitignore — Internal logs, local notes, and guides
+gravitychanges.md
+codexchanges.md
+analysis_report.md
+analysis-report-v2-gravity.md
+project_completion_audit.md
+frontend_guide.md
+client_integration_guide.md
+IMPLEMENTATION_STATUS.md

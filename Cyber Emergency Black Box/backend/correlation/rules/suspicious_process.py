@@ -13,12 +13,21 @@ class SuspiciousProcessRule(BaseRule):
     def evaluate(self, events):
         ordered = sorted(events, key=lambda event: event.timestamp)
         for process in ordered:
-            if process.event_type != "process_start":
+            if process.event_type != "process_start" or not process.process_name:
                 continue
             end = process.timestamp + timedelta(seconds=self.time_window_seconds)
             related = [event for event in ordered if process.timestamp <= event.timestamp <= end]
-            files = [event for event in related if event.process_name == process.process_name and event.event_type in {"file_created", "file_modified"}]
-            network = next((event for event in related if event.event_type == "network_connection" and (event.process_name == process.process_name or not event.process_name)), None)
+            files = [
+                event for event in related
+                if event.process_name == process.process_name
+                and event.event_type in {"file_created", "file_modified"}
+            ]
+            network = next((
+                event for event in related
+                if event.event_type == "network_connection"
+                and event.process_name == process.process_name
+                and (len(files) >= 2 and event.timestamp >= files[1].timestamp)
+            ), None)
             if len(files) >= 2 and network:
                 return RuleResult(
                     self.rule_id, self.name, self.severity,

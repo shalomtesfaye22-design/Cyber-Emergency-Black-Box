@@ -67,8 +67,4 @@ class EventService:
     @staticmethod
     async def get_event_stats(session: AsyncSession) -> dict[str, int]:
         """Aggregate event counts by event type."""
-        rows = await crud.get_events(session, limit=10000)
-        stats: dict[str, int] = {}
-        for row in rows:
-            stats[row.event_type] = stats.get(row.event_type, 0) + 1
-        return stats
+        return await crud.get_event_counts_by_type(session)

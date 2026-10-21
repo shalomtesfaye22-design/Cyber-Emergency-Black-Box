@@ -17,9 +17,15 @@ class CorrelationEngine:
         self.rules = rules or [AccountCompromiseRule(), SuspiciousProcessRule(), FileActivityRule()]
 
     async def _recent_events(self, session):
-        window = max(rule.time_window_seconds for rule in self.rules) + 60
-        cutoff = datetime.now(timezone.utc) - timedelta(seconds=window)
-        query = select(EventModel).where(EventModel.timestamp >= cutoff).order_by(EventModel.timestamp)
+        now = datetime.now(timezone.utc)
+        maximum_window = max(rule.time_window_seconds for rule in self.rules)
+        cutoff = now - timedelta(seconds=maximum_window + 60)
+        upper_bound = now + timedelta(seconds=maximum_window)
+        query = (
+            select(EventModel)
+            .where(EventModel.timestamp >= cutoff, EventModel.timestamp <= upper_bound)
+            .order_by(EventModel.timestamp)
+        )
         rows = list((await session.scalars(query)).all())
         return [NormalisedEvent(**event_dict(row)) for row in rows]
 

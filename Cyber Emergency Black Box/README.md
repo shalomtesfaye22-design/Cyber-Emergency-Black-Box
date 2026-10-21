@@ -45,49 +45,56 @@ pip install -r requirements.txt
 python scripts/init_db.py
 ```
 
-### Optional: Windows Event Log collector
+### Windows Security Event Log Telemetry
 
-For real login event collection, install `pywin32` (requires admin):
-
-```bash
-pip install pywin32==306
-```
-
-The application works fully without it — the simulator covers all demo scenarios.
+`pywin32` is included in `requirements.txt`. Note that Windows restricts access to `Security.evtx` (Logon event IDs 4624/4625). For real login collection:
+- Run your PowerShell terminal as **Administrator**.
+- If run without administrator privileges, the application automatically logs a clear warning and disables login telemetry while continuing to monitor processes, network connections, and file system activity normally.
 
 ---
 
 ## Running the Application
 
-```bash
-# From the project root
+From `Cyber Emergency Black Box/`:
+
+```powershell
+# Direct Python module entry point (recommended)
+python -m backend.main
+
+# Or via Uvicorn reload:
 uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Then open your browser at: **http://localhost:8000**
+The web dashboard is served at: **http://127.0.0.1:8000**  
+Interactive API docs are available at: **http://127.0.0.1:8000/docs**
+
+### Real-Time File System Telemetry
+The file collector automatically creates and watches the local directory `data/monitored/`. Dropping or editing any files in that folder triggers live file events without needing to touch system folders.
 
 ---
 
 ## Running the Demo Simulation
 
-1. Open the dashboard at `http://localhost:8000`.
-2. Click **"Run Security Incident Simulation"** on the Dashboard page.
-3. Watch simulated events appear in the Events view (tagged **[SIM]**).
-4. Within ~15 seconds the correlation engine detects the suspicious sequence.
-5. An incident appears in the Incidents view.
+1. Open the dashboard at `http://127.0.0.1:8000`.
+2. Click **"Run Security Incident Simulation"** on the Dashboard page (or via API: `POST /api/v1/simulator/run`).
+3. Watch simulated events appear in the Events view (tagged with purple `SIMULATED` badges).
+4. Within ~10 seconds the correlation engine detects the suspicious sequence.
+5. An incident appears in the Incidents view (e.g. `INC-20261021-0001`).
 6. Click the incident to see the timeline, evidence package, and human-readable interpretation.
-7. Click **"Generate Report"** to download an HTML incident report.
+7. Click **"Generate Report"** to view or download a standalone HTML incident report with host snapshot metadata.
+8. Click **"Verify Integrity"** to validate cryptographic SHA-256 hashes against `manifest.json`.
 
 ---
 
 ## Running Tests
 
-```bash
-# From the project root
-pytest
+From `Cyber Emergency Black Box/`:
+
+```powershell
+pytest -v
 ```
 
-All tests use an in-memory SQLite database — no files are written during testing.
+All 33 automated tests run against an in-memory SQLite database in ~2 seconds, covering unit, integration, simulation, and collector layers.
 
 ---
 

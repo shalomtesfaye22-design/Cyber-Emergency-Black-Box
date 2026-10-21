@@ -54,6 +54,26 @@ async def test_event_service_cryptographic_hash_chaining(db_session: AsyncSessio
 
 
 @pytest.mark.asyncio
+async def test_event_stats_uses_grouped_database_counts(db_session: AsyncSession):
+    now = datetime.now(timezone.utc)
+    for index, event_type in enumerate(("login_failure", "login_failure", "process_start")):
+        await crud.insert_event(
+            db_session,
+            {
+                "event_id": f"stats-{index}",
+                "timestamp": now,
+                "event_type": event_type,
+                "source": "test",
+            },
+        )
+
+    assert await EventService.get_event_stats(db_session) == {
+        "login_failure": 2,
+        "process_start": 1,
+    }
+
+
+@pytest.mark.asyncio
 async def test_incident_service_valid_statuses(db_session: AsyncSession):
     """Test incident service status lifecycle transitions (FR-023)."""
     now = datetime.now(timezone.utc)

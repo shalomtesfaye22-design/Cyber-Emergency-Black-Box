@@ -25,18 +25,22 @@ class AccountCompromiseRule(BaseRule):
             ]
             if len(failures) < 3:
                 continue
+            # The minimum three failures, success, and follow-up must all fit
+            # inside the same ten-minute detection interval.
+            qualifying_failures = failures[-3:]
+            window_end = qualifying_failures[0].timestamp + timedelta(seconds=self.time_window_seconds)
             follow_up = next((
                 event for event in ordered[success_index + 1:]
                 if event.event_type in activity_types
                 and event.user_name == success.user_name
-                and event.timestamp <= success.timestamp + timedelta(seconds=self.time_window_seconds)
+                and event.timestamp <= window_end
             ), None)
             if follow_up is None:
                 continue
-            ids = [event.event_id for event in failures] + [success.event_id, follow_up.event_id]
+            ids = [event.event_id for event in qualifying_failures] + [success.event_id, follow_up.event_id]
             return RuleResult(
                 self.rule_id, self.name, self.severity, ids,
-                f"{len(failures)} failed logins for {success.user_name} were followed by a successful login and {follow_up.event_type}.",
+                f"At least three failed logins for {success.user_name} were followed by a successful login and {follow_up.event_type} within ten minutes.",
                 ["Verify the account owner and source addresses.", "Review the post-login process, file, and network activity."],
             )
         return None

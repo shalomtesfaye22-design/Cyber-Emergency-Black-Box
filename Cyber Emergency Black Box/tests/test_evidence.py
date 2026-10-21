@@ -1,5 +1,5 @@
 import shutil
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,6 +52,17 @@ async def test_evidence_preserve_verify_and_zip(db_session: AsyncSession):
             "preserved": False,
         },
     )
+    await crud.insert_event(
+        db_session,
+        {
+            "event_id": "ev-context-02",
+            "timestamp": now + timedelta(seconds=1),
+            "event_type": "process_start",
+            "source": "evidence_test",
+            "process_name": "notepad.exe",
+            "preserved": False,
+        },
+    )
     await crud.link_events_to_incident(db_session, incident_id, ["ev-item-01"])
 
     folder_path = None
@@ -73,6 +84,10 @@ async def test_evidence_preserve_verify_and_zip(db_session: AsyncSession):
         assert manifest["incident_id"] == incident_id
         assert "events.json" in manifest["files"]
         assert "manifest.json" not in manifest["files"]  # Manifest does not self-reference
+        import json
+        package_events = json.loads((folder / "events.json").read_text(encoding="utf-8"))
+        assert len(package_events) == 2
+        assert next(row for row in package_events if row["event_id"] == "ev-context-02")["linked_to_incident"] is False
 
         # Verify integrity
         verification = mgr.verify(incident_id)
@@ -91,6 +106,10 @@ async def test_evidence_preserve_verify_and_zip(db_session: AsyncSession):
         events_file.write_text(original_content, encoding="utf-8")
         restored_verification = mgr.verify(incident_id)
         assert restored_verification["valid"] is True
+
+        (folder / "unmanifested.txt").write_text("unexpected", encoding="utf-8")
+        assert mgr.verify(incident_id)["valid"] is False
+        (folder / "unmanifested.txt").unlink()
 
         # Test zip creation
         zip_result = mgr.zip(incident_id)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import errno
 from typing import Any
 
 from backend.collectors.base import BaseCollector, make_event, utc_now
@@ -16,10 +17,32 @@ _FAILURE_EVENT_ID = 4625
 def _local_to_utc(value: datetime | None) -> datetime:
     if value is None:
         return utc_now()
+    if not isinstance(value, datetime):
+        # pywin32 timestamp values are usually datetime subclasses. Accept
+        # timestamp-like wrappers as well, keeping the resulting value UTC-aware.
+        timestamp = getattr(value, "timestamp", None)
+        if callable(timestamp):
+            try:
+                return datetime.fromtimestamp(timestamp(), tz=timezone.utc)
+            except (OSError, OverflowError, TypeError, ValueError):
+                return utc_now()
+        return utc_now()
     if value.tzinfo is None:
         local_tz = datetime.now().astimezone().tzinfo
         value = value.replace(tzinfo=local_tz)
     return value.astimezone(timezone.utc)
+
+
+def _is_access_denied(error: Exception) -> bool:
+    """Recognize Windows access-denied errors and standard permission failures."""
+    winerror = getattr(error, "winerror", None)
+    error_code = error.args[0] if getattr(error, "args", ()) else None
+    return (
+        isinstance(error, PermissionError)
+        or winerror in {5, 1314}  # access denied / required privilege not held
+        or getattr(error, "errno", None) == errno.EACCES
+        or error_code in {5, 1314}
+    )
 
 
 def _insert(inserts: list[Any] | tuple[Any, ...] | None, index: int) -> str | None:
@@ -147,11 +170,11 @@ class LoginCollector(BaseCollector):
                 return []
             records = self._iter_new_records()
         except Exception as exc:
-            winerror = getattr(exc, "winerror", None)
-            if winerror == 5:
+            if _is_access_denied(exc):
                 self.mark_unavailable(
-                    "access denied reading the Security event log; "
-                    "the process likely lacks audit-log read rights"
+                    "access denied reading the Windows Security event log. "
+                    "Run the demo from an elevated terminal or grant this account "
+                    "Event Log Readers / Security log read rights."
                 )
                 return []
             self.logger.warning("login event log read failed: %s", exc)

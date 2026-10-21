@@ -36,6 +36,7 @@ logger = logging.getLogger("blackbox")
 
 async def _run_maintenance_loop(app: FastAPI) -> None:
     """Periodic background worker for collector execution, correlation analysis, and retention cleanup."""
+    interval_seconds = settings.correlation_interval_seconds
     while True:
         try:
             # 1. Run periodic collectors
@@ -45,18 +46,29 @@ async def _run_maintenance_loop(app: FastAPI) -> None:
 
             # 2. Run correlation analysis and rolling retention purge
             async with get_session_factory()() as session:
+                runtime_settings = await crud.get_settings(session)
+                try:
+                    retention_minutes = int(runtime_settings.get("retention_minutes", settings.retention_minutes))
+                    interval_seconds = max(
+                        1,
+                        int(runtime_settings.get("correlation_interval_seconds", settings.correlation_interval_seconds)),
+                    )
+                except (TypeError, ValueError):
+                    logger.warning("Invalid persisted maintenance settings; using startup defaults")
+                    retention_minutes = settings.retention_minutes
+                    interval_seconds = settings.correlation_interval_seconds
                 correlation_engine = getattr(app.state, "correlation_engine", None)
                 if correlation_engine is not None:
                     await correlation_engine.run_once(session)
 
-                await RollingBufferService.cleanup(session, settings.retention_minutes)
+                await RollingBufferService.cleanup(session, retention_minutes)
 
         except asyncio.CancelledError:
             break
         except Exception:
             logger.exception("Error during background maintenance cycle")
 
-        await asyncio.sleep(settings.correlation_interval_seconds)
+        await asyncio.sleep(interval_seconds)
 
 
 @asynccontextmanager
@@ -145,3 +157,9 @@ app.include_router(simulator_router, prefix=API_PREFIX)
 # Mount frontend static files if directory exists
 if settings.frontend_dir.exists():
     app.mount("/", StaticFiles(directory=settings.frontend_dir, html=True), name="frontend")
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host=settings.host, port=settings.port, reload=False)
