@@ -39,12 +39,14 @@ and preservation flag. Incident evidence is written once under
 - **Codex** owns `backend/correlation/`, `backend/evidence/`, `backend/interpreter/`,
   `backend/reports/`, and `simulator/`.
 
-All changes have been tested and committed to branch `feature/backend-hardening`.
-Always check `git status` before editing or committing.
+The shared branch currently contains integrated work from all three owners. Test
+results and commits describe a point in time, so always run `git status`, inspect
+`git log --oneline -5`, and rerun the relevant tests before relying on them.
 
 ## Running Locally
 
-Compatible with **Python 3.11 through 3.14** from the application directory:
+Use **Python 3.11+** from the application directory. Create an isolated environment
+so the pinned project dependencies are used:
 
 ```powershell
 cd 'Cyber Emergency Black Box'
@@ -79,4 +81,21 @@ python -m simulator.runner --scenario account_compromise
 
 - **Windows Event Log & WMI**: `LoginCollector` (Event IDs 4624/4625) and `USBCollector` (WMI) are Windows-specific and require administrative permissions to read the Windows Security log. Run PowerShell/Terminal **as Administrator** to enable real Security log ingestion.
 - **Graceful Fallbacks**: When running without Admin rights or on Linux/macOS, collectors automatically mark themselves `available=False` and log warnings without crashing the application.
+
+## Validation and Agent Handoff
+
+Run focused tests while changing one subsystem, then run the complete suite before
+integration:
+
+```powershell
+pytest -v
+python -m simulator.runner --scenario account_compromise
+```
+
+The expected demonstration path is SIM-001 → event ingestion → correlation incident
+→ interpreter output → evidence manifest verification → downloadable HTML report.
+Do not commit `.env`, databases, `evidence/`, logs, or captured endpoint data. Read
+`codexchanges.md` for the forensic-module handoff and `analysis_report.md` for the
+latest documented implementation review; treat both as supporting notes, while the
+nested requirements and design documents remain the project specification.
 

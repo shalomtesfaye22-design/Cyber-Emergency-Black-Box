@@ -52,7 +52,10 @@ made concurrently by Antigravity or Cursor.
 
 - Syntax validation passed for the assigned modules.
 - SIM-001 produces eight chronologically ordered, clearly labelled synthetic events.
-- Full runtime validation still requires Python 3.11, dependencies from
-  `requirements.txt`, `pytest`, and an end-to-end Windows test.
-- Complete the real Windows Event Log/WMI collectors and let their owners reconcile
-  their integration contracts with correlation and evidence before merging.
+- Subsequent team integration commits added the service/API layer, SQLite WAL mode,
+  hash chaining, and a broader automated test suite. Consult `git log` and
+  `analysis_report.md` for the current shared-branch state.
+- The remaining operational validation is an end-to-end Windows run with the desired
+  collector permissions and optional dependencies installed.
+- Real Windows Event Log and WMI collection remain environment-dependent; confirm
+  their integration contracts with correlation and evidence before release.
