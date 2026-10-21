@@ -9,6 +9,7 @@ Do NOT hard-code secrets or sensitive paths here.
 """
 
 from pathlib import Path
+import platform
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -33,6 +34,7 @@ class Settings(BaseSettings):
     # Application metadata
     # ------------------------------------------------------------------
     app_name: str = "Cyber Emergency Black Box"
+    project_root: Path = PROJECT_ROOT
     app_version: str = "1.0.0"
     app_description: str = (
         "A lightweight endpoint incident-response and digital-forensics assistant. "
@@ -70,10 +72,14 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     # Comma-separated list of enabled collector names.
     # Valid names: login, process, file, network, usb, system_info
-    enabled_collectors: str = "process,file,network,system_info"
+    enabled_collectors: str = (
+        "process,file,network,system_info,login"
+        if platform.system() == "Windows"
+        else "process,file,network,system_info"
+    )
 
-    # Paths watched by the file collector (comma-separated)
-    monitored_paths: str = str(Path.home())
+    # Keep the default watch local and reliable; users may add other paths via .env.
+    monitored_paths: str = str(PROJECT_ROOT / "data" / "monitored")
 
     # File extensions excluded from file monitoring (comma-separated)
     file_exclude_extensions: str = ".pyc,.pyo,.log,.tmp,.swp,.bak"
