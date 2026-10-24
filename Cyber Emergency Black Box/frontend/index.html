@@ -1,1 +1,183 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cyber Emergency Black Box</title><link rel="stylesheet" href="/static/style.css"></head><body><aside><h1>Black Box</h1><button data-page="overview">Overview</button><button data-page="events">Events</button><button data-page="incidents">Incidents</button><button data-page="investigation">Timeline</button><button data-page="evidence">Evidence</button><button data-page="reports">Reports</button><button data-page="settings">Settings</button><p>Local prototype — authorised monitoring only.</p></aside><main><section id="overview"><h2>Overview</h2><div id="summary">Loading…</div><button id="simulate">Run Security Incident Simulation</button></section><section id="events" hidden><h2>Events</h2><pre id="event-list"></pre></section><section id="incidents" hidden><h2>Incidents</h2><pre id="incident-list"></pre></section><section id="investigation" hidden><h2>Incident Timeline</h2><p>Select an incident ID from the incidents list.</p><pre id="timeline-list"></pre></section><section id="evidence" hidden><h2>Evidence</h2><p>Select an incident ID from the incidents list to verify or download its evidence.</p></section><section id="reports" hidden><h2>Reports</h2><p>Reports are available at <code>/api/v1/incidents/&lt;id&gt;/report</code>.</p></section><section id="settings" hidden><h2>Settings & Privacy</h2><p>No file contents, keystrokes, credentials, or message content are collected.</p><pre id="settings-list"></pre></section></main><script src="/static/app.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CEBB – Cyber Emergency Black Box</title>
+<style>
+:root{--bg:#070e1c;--panel:#0d182b;--panel2:#101e36;--line:#1a2b49;--tx:#e6edf9;--mut:#8196b8;--acc:#2a6cf6;--ok:#22c58b;--warn:#f0a43a;--hi:#f2683c;--crit:#ef4458;--pur:#9b7cf6}
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{background:var(--bg);min-height:100vh;color:var(--tx);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-variant-numeric:tabular-nums}
+.mono,td.m,pre,.hash,.sub code,.inc span.sub:first-child{font-family:ui-monospace,"Cascadia Mono","SF Mono",Consolas,monospace}
+a{color:inherit;text-decoration:none}button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.btn{background:var(--acc);border:0;border-radius:3px;padding:7px 14px;cursor:pointer;font-weight:500}
+.btn:hover{filter:brightness(1.12)}.btn:disabled{opacity:.5;cursor:wait}
+.btn.ghost{background:transparent;border:1px solid var(--line)}.btn.sm{padding:4px 10px;font-size:12px}
+input[type=text],input[type=password],input[type=number],select{background:#0a1426;border:1px solid var(--line);border-radius:3px;padding:7px 10px;width:100%}
+select{width:auto}
+#root{min-height:100vh}#login{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;background:var(--bg)}
+#login .brand{display:flex;flex-direction:column;justify-content:center;padding:0 12%}
+#login .brand h1{font-size:44px;margin:12px 0 4px;letter-spacing:2px}
+#login .box{margin:auto;width:min(380px,90%);background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:28px}
+#login label{display:block;margin:14px 0 4px;color:var(--mut);font-size:12px}
+.shield{width:54px;height:54px}
+#app{display:grid;grid-template-columns:200px 1fr;min-height:100vh}
+nav{background:#0a1425;border-right:1px solid var(--line);padding:16px 12px;position:sticky;top:0;height:100vh}
+nav .logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:18px;margin:0 6px 20px}
+nav .logo svg{width:24px;height:24px}
+nav a{display:block;padding:9px 12px;border-radius:6px;color:var(--mut);margin-bottom:2px}
+nav a.on{background:#12306a;color:#fff}nav a:hover{color:#fff}
+header{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;border-bottom:1px solid var(--line)}
+header h2{margin:0;font-size:17px}.who{color:var(--mut);font-size:12px;text-align:right}
+main{padding:22px 24px;max-width:1200px}
+.grid{display:grid;gap:14px}.g4{grid-template-columns:repeat(4,1fr)}.g2{grid-template-columns:1.6fr 1fr}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:14px 16px}
+.card h3{margin:0 0 10px;font-size:13px;color:var(--mut);font-weight:600}
+.big{font-size:26px;font-weight:600;font-family:ui-monospace,"Cascadia Mono",Consolas,monospace}.sub{font-size:12px;color:var(--mut)}
+table{width:100%;border-collapse:collapse}th{text-align:left;color:var(--mut);font-weight:500;font-size:12px}
+td,th{padding:9px 10px;border-bottom:1px solid var(--line)}
+tr.row{cursor:pointer}tr.row:hover{background:var(--panel2)}
+.wrap{overflow-x:auto}
+.b{display:inline-block;padding:0 7px;border-radius:2px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border:1px solid}
+.LOW{color:var(--ok);border-color:#1b5e49;background:#0d2a25}.MEDIUM{color:var(--warn);border-color:#6a4a1a;background:#2a2012}
+.HIGH{color:var(--hi);border-color:#7a3520;background:#2d1a15}.CRITICAL{color:var(--crit);border-color:#7a2230;background:#2d121a}
+.OPEN{color:var(--warn);border-color:#6a4a1a}.INVESTIGATING{color:#6aa0ff;border-color:#27498c}.CLOSED{color:var(--ok);border-color:#1b5e49}
+.SIM{color:var(--pur);border-color:#4b3d8a}.REAL{color:var(--ok);border-color:#1b5e49}
+.bar{display:flex;gap:10px;margin:0 0 14px;flex-wrap:wrap;align-items:center}
+.bar input[type=text]{width:240px}
+.pills{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:3px}
+.pills a{padding:4px 14px;border-radius:5px;color:var(--mut);font-size:13px}.pills a.on{background:#12306a;color:#fff}
+.inc{display:flex;justify-content:space-between;gap:14px;cursor:pointer;margin-bottom:10px}
+.inc:hover{border-color:var(--acc)}.inc b{display:block;margin:2px 0}
+pre{background:#060c18;border:1px solid var(--line);border-radius:6px;padding:12px;overflow:auto;font-size:12px;margin:0}
+.tl{position:relative;margin-left:14px;border-left:2px solid var(--line)}
+.tl .ev{position:relative;padding:0 0 16px 22px;cursor:pointer}
+.tl .ev:before{content:"";position:absolute;left:-7px;top:4px;width:12px;height:12px;border-radius:50%;background:var(--acc);border:2px solid var(--bg)}
+.tl .ev.trig:before{background:var(--crit);border-radius:2px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:14px 0}
+.tabs a{padding:8px 14px;color:var(--mut);border-bottom:2px solid transparent}.tabs a.on{color:#fff;border-color:var(--acc)}
+.okbox{border:1px solid #1b5e49;background:#0d2a25;color:var(--ok);padding:12px;border-radius:8px;text-align:center;font-weight:600}
+.badbox{border-color:#7a2230;background:#2d121a;color:var(--crit)}
+.disc{border-left:3px solid var(--warn);background:#2a2012;padding:10px 12px;border-radius:4px;color:#e9c98f;margin-top:12px}
+.hash{font:12px ui-monospace,Consolas,monospace;color:var(--mut)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);margin-right:6px}
+#toast{position:fixed;right:20px;bottom:20px;display:grid;gap:8px;z-index:9}
+#toast div{background:var(--panel2);border:1px solid var(--acc);padding:10px 16px;border-radius:8px}
+.chk{display:flex;gap:8px;margin:8px 0;align-items:center}.chk input{width:auto}
+.f{margin-bottom:14px}.f label{display:block;color:var(--mut);font-size:12px;margin-bottom:4px}
+.demo{background:#2a2012;color:#e9c98f;padding:6px 24px;font-size:12px}
+@media(max-width:820px){#login{grid-template-columns:1fr}#login .brand{display:none}#app{grid-template-columns:1fr}nav{position:static;height:auto;display:flex;flex-wrap:wrap;gap:4px}nav .logo{width:100%}.g4,.g2{grid-template-columns:1fr 1fr}.g2{grid-template-columns:1fr}}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><symbol id="sh" viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" fill="#1c4fd0" stroke="#6aa0ff" stroke-width="1.2"/><circle cx="12" cy="11" r="2.4" fill="#fff"/><path d="M12 13v4" stroke="#fff" stroke-width="1.6"/></symbol></svg>
+<div id="toast"></div><div id="root"></div>
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=t=>t?t.replace('T',' ').slice(0,19):'—',B=(c,t)=>`<span class="b ${c}">${esc(t??c)}</span>`;
+const ICON={login_success:'AUTH',login_failure:'AUTH',process_start:'PROC',process_stop:'PROC',file_created:'FILE',file_modified:'FILE',file_deleted:'FILE',network_connection:'NET'};
+const arr=(d,k)=>Array.isArray(d)?d:(d&&(d[k]||d.items||d.data||d.results))||[];
+const BASE=location.protocol==='file:'?'http://127.0.0.1:8000':'';let simRan=false,demo=false,timer=null,users=[{n:'admin',e:'admin@cebb.local',r:'Administrator'},{n:'investigator1',e:'investigator1@cebb.local',r:'Investigator'}];
+function toast(m){const d=document.createElement('div');d.textContent=m;$('#toast').append(d);setTimeout(()=>d.remove(),5000)}
+/* ---- demo data used only when the backend is unreachable ---- */
+const T=(m)=>`2026-10-21T20:${String(m).padStart(2,'0')}:00Z`;
+const M_EV=[['login_failure','LOW','winlogon.exe','Failed login for target_user'],['login_failure','LOW','winlogon.exe','Failed login'],['login_failure','LOW','winlogon.exe','Failed login'],['login_success','MEDIUM','winlogon.exe','Successful login'],['process_start','MEDIUM','powershell.exe','Process started'],['file_modified','MEDIUM','powershell.exe','data/monitored/a.txt'],['file_modified','MEDIUM','powershell.exe','data/monitored/b.txt'],['network_connection','HIGH','powershell.exe','198.51.100.25:443']].map((e,i)=>({event_id:'EVT-'+(101+i),timestamp:T(i+1),event_type:e[0],severity:e[1],user:'target_user',process:e[2],action:e[3],target:e[3],source:'simulator',is_simulated:true,raw_hash:'a1b2'.repeat(16),previous_hash:'f0e1'.repeat(16),description:e[3],is_trigger:i==7}));
+const M_INC={incident_id:'INC-20261021-0001',detection_time:T(10),rule_id:'R-01',rule_name:'Possible Account Compromise',severity:'HIGH',status:'OPEN',summary:"3 failed logins followed by a successful login for 'target_user'",event_count:8,interpretation:{summary:"Potential account compromise for 'target_user'.",confirmed_facts:['3 authentication failures between 20:01 and 20:03.','Successful login at 20:04.',"powershell.exe executed at 20:05."],detection_assessment:'Matches a password-guessing pattern followed by interactive logon.',recommendations:['Verify the login with the account owner.','Inspect the process and network activity.','Rotate credentials.'],disclaimer:'Automated analysis prototype. Human verification required.'}};
+const M_FILES=['events.json','timeline.json','system_info.json','manifest.json','README.txt'].map((n,i)=>({name:n,size_bytes:800+i*700,sha256:(i+3).toString(16).repeat(64)}));
+function mock(p,o){
+ if(o&&o.method==='PATCH'){M_INC.status=JSON.parse(o.body).status;return M_INC}
+ if(o&&o.method==='POST'){setTimeout(()=>simRan=true,3000);return{status:'started'}}
+ const INCS=()=>simRan?[{...M_INC,incident_id:'INC-20261021-0002',detection_time:T(30),severity:'CRITICAL',summary:'Simulated run: 3 failed logins then success for target_user'},M_INC]:[M_INC];
+ if(p.startsWith('/dashboard/summary'))return{monitoring_active:true,total_events:428+(simRan?8:0),total_incidents:INCS().length,highest_severity:'HIGH',uptime_human:'30m 45s',recent_incidents:INCS()};
+ if(p.startsWith('/events'))return{total:8,events:M_EV};
+ if(/\/timeline/.test(p))return{events:M_EV,event_count:8,start_time:T(1),end_time:T(8)};
+ if(/evidence\/verify/.test(p))return{verified:true,status:'INTACT',message:'All 5 evidence files match the SHA-256 manifest.'};
+ if(/\/evidence/.test(p))return{files:M_FILES,created_at:T(10)};
+ if(/incidents\/[^/]+$/.test(p))return M_INC;
+ if(p.startsWith('/incidents'))return{total:INCS().length,incidents:INCS()};
+ if(p.startsWith('/system/info'))return{hostname:'LAB-DESKTOP-01',os:'Windows 11',cpu_percent:12.4,memory_percent:54.2,boot_time:T(0)};
+ if(p.startsWith('/system/status'))return{status:'operational',collectors:{process:{enabled:true},network:{enabled:true},file:{enabled:true},system_info:{enabled:true},login:{enabled:true}}};
+ if(p.startsWith('/settings'))return{retention_minutes:30,correlation_interval_seconds:10,collector_interval_seconds:5,monitored_paths:'data/monitored'};
+ if(p.startsWith('/simulator'))return{status:'started'};return{}}
+async function api(p,o){try{const r=await fetch(BASE+'/api/v1'+p,o);if(!r.ok)throw new Error(r.status+' '+(await r.text()).slice(0,120));demo=false;return await r.json()}
+ catch(e){if(e instanceof TypeError||location.protocol==='file:'){demo=true;return mock(p,o)}throw e}}
+/* ---- shell ---- */
+const NAV=[['dashboard','Dashboard'],['events','Events'],['incidents','Incidents'],['evidence','Evidence'],['users','Users'],['settings','Settings']];
+let authed=false;try{authed=sessionStorage.getItem('cebb')==='1'}catch(e){}
+function shell(page,title,body){$('#root').innerHTML=`<div id="app"><nav><div class="logo"><svg><use href="#sh"/></svg>CEBB</div>${NAV.map(n=>`<a href="#/${n[0]}" class="${n[0]===page?'on':''}">${n[1]}</a>`).join('')}</nav><div><header><h2>${title}</h2><div class="who">admin<br>Administrator · <a href="#/login" id="out" style="color:var(--acc)">Sign out</a></div></header>${demo?`<div class="demo">Backend not reachable at ${BASE||'this address'} — showing sample data. Start it with <code>python -m backend.main</code> and reload.</div>`:''}<main>${body}</main></div></div>`}
+function loginView(){$('#root').innerHTML=`<div id="login"><div class="brand"><svg class="shield"><use href="#sh"/></svg><h1>CEBB</h1><div>Cyber Emergency Black Box</div><p style="color:var(--mut)"><b style="color:var(--tx)">Detect. Investigate. Preserve.</b><br>An incident response platform for faster, smarter investigations.</p></div><form class="box" id="lf"><h2 style="margin:0">Welcome back</h2><div class="sub">Sign in to your account to continue</div><label>Username or email</label><input type="text" id="u" required autocomplete="username"><label>Password</label><input type="password" id="pw" required autocomplete="current-password"><button class="btn" style="width:100%;margin-top:18px">Sign in</button><p class="sub" style="text-align:center">Secure · Private · For authorised users only</p></form></div>`;
+ $('#lf').onsubmit=e=>{e.preventDefault();authed=true;try{sessionStorage.setItem('cebb','1')}catch(x){}location.hash='#/dashboard'}}
+/* ---- views ---- */
+async function dashboard(){
+ const [s,ev,st,inc]=await Promise.all([api('/dashboard/summary'),api('/events?limit=500'),api('/system/status'),api('/incidents?limit=100')]);
+ const list=arr(inc,'incidents'),open=list.filter(i=>i.status!=='CLOSED').length,evs=arr(ev,'events');
+ let ts=evs.map(e=>+new Date(e.timestamp)).filter(t=>t==t),lo=ts.length?Math.min(...ts):0,hi=ts.length?Math.max(...ts,lo+1):1,n=12,bk=Array(n).fill(0);
+ ts.forEach(t=>bk[Math.min(n-1,Math.floor((t-lo)/(hi-lo)*n))]++);const mx=Math.max(...bk,1);
+ const pts=bk.map((v,i)=>`${10+i*(380/(n-1))},${120-v/mx*100}`).join(' ');
+ const by={};list.forEach(i=>by[i.rule_name]=(by[i.rule_name]||0)+1);const cols=['#ef4458','#2a6cf6','#22c58b','#f0a43a'];let acc=0,tot=list.length||1,arcs='';
+ Object.values(by).forEach((v,i)=>{const f=v/tot*100;arcs+=`<circle r="15.9" cx="21" cy="21" fill="none" stroke="${cols[i%4]}" stroke-width="5" stroke-dasharray="${f} ${100-f}" stroke-dashoffset="${25-acc}"/>`;acc+=f});
+ const on=Object.values(st.collectors||{}).filter(c=>c.enabled).length;
+ shell('dashboard','Cyber security overview',`<div class="bar"><button class="btn" id="sim">Run attack simulation (SIM-001)</button><span class="sub"><span class="dot"></span>${s.monitoring_active?'Monitoring active':'Monitoring paused'} · uptime ${esc(s.uptime_human)}</span></div>
+ <div class="grid g4"><div class="card"><h3>Total events</h3><div class="big">${(s.total_events||0).toLocaleString()}</div></div><div class="card"><h3>Open incidents</h3><div class="big" style="color:${open?'var(--crit)':'inherit'}">${open}</div></div><div class="card"><h3>Closed incidents</h3><div class="big">${list.length-open}</div></div><div class="card"><h3>System status</h3><div class="big" style="color:var(--ok);font-size:22px">${esc(st.status==='operational'?'Online':st.status)}</div><div class="sub">${on} collectors running</div></div></div>
+ <div class="grid g2" style="margin-top:14px"><div class="card"><h3>Events over the retention window</h3><svg viewBox="0 0 400 130" width="100%"><polyline points="${pts}" fill="none" stroke="#2a6cf6" stroke-width="2"/><polygon points="10,120 ${pts} 390,120" fill="#2a6cf633"/></svg></div>
+ <div class="card"><h3>Incident types</h3><div style="display:flex;align-items:center;gap:16px"><svg viewBox="0 0 42 42" width="130"><circle r="15.9" cx="21" cy="21" fill="none" stroke="#1a2b49" stroke-width="5"/>${arcs}<text x="21" y="23" text-anchor="middle" fill="#fff" font-size="8">${list.length}</text></svg><div>${Object.entries(by).map(([k,v],i)=>`<div class="sub"><span style="color:${cols[i%4]}">●</span> ${esc(k)} (${v})</div>`).join('')||'<span class="sub">No incidents yet</span>'}</div></div></div></div>
+ <div class="card" style="margin-top:14px"><h3>Recent incidents</h3>${incTable(list.slice(0,3))}</div>`);
+ $('#sim').onclick=async e=>{e.target.disabled=true;e.target.textContent='Injecting synthetic threat sequence…';try{await api('/simulator/run',{method:'POST',headers:{'Content-Type':'application/json'},body:'{"scenario":"account_compromise"}'});toast('Simulation started — an incident should appear within about 10 seconds.')}catch(x){toast('Simulation failed: '+x.message)}setTimeout(()=>route(),8000)}}
+function incTable(l){return l.length?`<div class="wrap"><table><tr><th>Incident</th><th>Detected</th><th>Rule</th><th>Severity</th><th>Status</th><th>Events</th></tr>${l.map(i=>`<tr class="row" onclick="location.hash='#/incident/${i.incident_id}/overview'"><td class="m">${i.incident_id}</td><td class="m">${fmt(i.detection_time)}</td><td>${esc(i.rule_name)}</td><td>${B(i.severity)}</td><td>${B(i.status)}</td><td>${i.event_count}</td></tr>`).join('')}</table></div>`:'<p class="sub">No incidents detected. Run the simulation to see one.</p>'}
+let F={q:'',t:'',s:'',h:false};
+async function events(){
+ const q=new URLSearchParams({limit:500});if(F.t)q.set('event_type',F.t);if(F.s)q.set('severity',F.s);if(F.h)q.set('is_simulated','false');
+ const d=await api('/events?'+q);let rows=arr(d,'events').filter(e=>!F.q||[e.user,e.process,e.target,e.action].join(' ').toLowerCase().includes(F.q.toLowerCase()));
+ const types=Object.keys(ICON),opt=(a,v)=>a.map(x=>`<option ${x===v?'selected':''}>${x}</option>`).join('');
+ shell('events','Security events',`<div class="bar"><input type="text" id="fq" placeholder="Search user, process or target" value="${esc(F.q)}"><select id="ft"><option value="">All types</option>${opt(types,F.t)}</select><select id="fs"><option value="">All severities</option>${opt(['LOW','MEDIUM','HIGH','CRITICAL'],F.s)}</select><label class="chk" style="margin:0"><input type="checkbox" id="fh" ${F.h?'checked':''}>Hide simulated</label><button class="btn sm" id="csv" style="margin-left:auto">Export CSV</button></div>
+ <div class="card wrap"><table><tr><th>Time (UTC)</th><th>Type</th><th>User</th><th>Process</th><th>Action / target</th><th>Severity</th><th>Source</th></tr>${rows.map((e,i)=>`<tr class="row" data-i="${i}"><td class="m">${fmt(e.timestamp)}</td><td>${esc(e.event_type)}</td><td>${esc(e.user)}</td><td>${esc(e.process)}</td><td>${esc(e.action||e.target)}</td><td>${B(e.severity)}</td><td>${e.is_simulated?B('SIM','SIMULATED'):B('REAL','REAL')}</td></tr>`).join('')||'<tr><td colspan=7 class="sub">No events match these filters.</td></tr>'}</table></div>`);
+ $('#fq').oninput=e=>{F.q=e.target.value;clearTimeout(window._d);window._d=setTimeout(events,300)};$('#ft').onchange=e=>{F.t=e.target.value;events()};$('#fs').onchange=e=>{F.s=e.target.value;events()};$('#fh').onchange=e=>{F.h=e.target.checked;events()};
+ $('#fq').focus();$('#fq').setSelectionRange(99,99);
+ document.querySelectorAll('tr.row').forEach(r=>r.onclick=()=>{const nx=r.nextElementSibling;if(nx&&nx.classList.contains('x')){nx.remove();return}const e=rows[r.dataset.i],t=document.createElement('tr');t.className='x';t.innerHTML=`<td colspan=7><pre>${esc(JSON.stringify(e,null,2))}</pre></td>`;r.after(t)});
+ $('#csv').onclick=()=>{const h=['event_id','timestamp','event_type','severity','user','process','target','raw_hash'],c=[h.join(',')].concat(rows.map(e=>h.map(k=>JSON.stringify(e[k]??'')).join(',')));const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c.join('\n')],{type:'text/csv'}));a.download='cebb_events.csv';a.click()}}
+async function incidents(st=''){
+ const all=arr(await api('/incidents?limit=200'),'incidents'),cnt=s=>all.filter(i=>!s||i.status===s).length,l=all.filter(i=>!st||i.status===st);
+ shell('incidents','Incidents',`<div class="bar"><div class="pills">${[['','All'],['OPEN','Open'],['INVESTIGATING','Investigating'],['CLOSED','Closed']].map(p=>`<a href="#/incidents/${p[0]}" class="${p[0]===st?'on':''}">${p[1]} (${cnt(p[0])})</a>`).join('')}</div></div>${l.map(i=>`<div class="card inc" onclick="location.hash='#/incident/${i.incident_id}/overview'"><div><span class="sub">${i.incident_id}</span><b>${esc(i.rule_name)}</b><span class="sub">${esc(i.summary)}</span></div><div style="text-align:right">${B(i.severity)} ${B(i.status)}<div class="sub">${fmt(i.detection_time)}</div></div></div>`).join('')||'<p class="sub">No incidents with this status.</p>'}`)}
+async function incident(id,tab='overview'){
+ const [i,tl]=await Promise.all([api('/incidents/'+id),api(`/incidents/${id}/timeline`)]),x=i.interpretation||{},cnt={};tl.events=arr(tl,'events');tl.events.forEach(e=>cnt[e.event_type]=(cnt[e.event_type]||0)+1);
+ const li=a=>`<ul>${(a||[]).map(v=>`<li>${esc(v)}</li>`).join('')}</ul>`;
+ const interp=`<h3>Summary</h3><p>${esc(x.summary)}</p><h3>Confirmed facts</h3>${li(x.confirmed_facts)}<h3>Detection assessment</h3><p>${esc(x.detection_assessment)}</p><h3>Recommended next steps</h3>${li(x.recommendations)}<div class="disc">${esc(x.disclaimer||'Automated analysis prototype. Human verification required.')}</div>`;
+ let body='';
+ if(tab==='overview')body=`<div class="grid g2"><div class="card"><h3>Summary</h3><p>${esc(i.summary)}</p><div class="sub">First event: ${fmt(tl.start_time)}<br>Last event: ${fmt(tl.end_time)}<br>Rule: ${i.rule_id} · ${esc(i.rule_name)}</div></div><div class="card"><h3>Related events</h3>${Object.entries(cnt).map(([k,v])=>`<div><span class="mono sub">${ICON[k]||''}</span> ${v} × ${esc(k)}</div>`).join('')}<button class="btn" style="margin-top:12px" onclick="location.hash='#/incident/${id}/timeline'">View full timeline</button></div></div>`;
+ if(tab==='timeline')body=`<div class="grid g2"><div class="tl">${tl.events.map((e,k)=>`<div class="ev ${e.is_trigger?'trig':''}" data-k="${k}"><span class="sub">${fmt(e.timestamp)}</span> ${e.is_trigger?B('CRITICAL','TRIGGER POINT'):''}<div><span class="mono sub">${ICON[e.event_type]||''}</span> ${esc(e.description||e.event_type)}</div></div>`).join('')}</div><div class="card" id="det"><h3>Event details</h3><span class="sub">Select an event to see its record.</span></div></div>`;
+ if(tab==='events')body=`<div class="card wrap"><table><tr><th>Time</th><th>Type</th><th>Process</th><th>Severity</th></tr>${tl.events.map(e=>`<tr><td>${fmt(e.timestamp)}</td><td>${esc(e.event_type)}</td><td>${esc(e.process)}</td><td>${B(e.severity)}</td></tr>`).join('')}</table></div>`;
+ if(tab==='evidence')body=`<div id="evb" class="card">Loading evidence…</div>`;
+ if(tab==='explanation')body=`<div class="card">${interp}</div>`;
+ const TB=[['overview','Overview'],['timeline','Timeline'],['events','Related events'],['evidence','Evidence'],['explanation','Explanation']];
+ shell('incidents',`<a href="#/incidents" style="color:var(--mut)">Incidents</a> / ${id}`,`<h2 style="margin:0 0 6px">${esc(i.rule_name)} ${B(i.severity)} ${B(i.status)}</h2><div class="bar"><select id="st">${['OPEN','INVESTIGATING','CLOSED'].map(s=>`<option ${s===i.status?'selected':''}>${s}</option>`).join('')}</select><a class="btn ghost sm" href="${BASE}/api/v1/incidents/${id}/report" target="_blank" rel="noopener">View report</a></div><div class="tabs">${TB.map(t=>`<a href="#/incident/${id}/${t[0]}" class="${t[0]===tab?'on':''}">${t[1]}</a>`).join('')}</div>${body}`);
+ $('#st').onchange=async e=>{try{await api('/incidents/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:e.target.value})});toast('Status updated to '+e.target.value)}catch(x){toast('Update failed: '+x.message)}};
+ document.querySelectorAll('.tl .ev').forEach(el=>el.onclick=()=>{$('#det').innerHTML='<h3>Event details</h3><pre>'+esc(JSON.stringify(tl.events[el.dataset.k],null,2))+'</pre>'});
+ if(tab==='evidence')evidencePanel(id,$('#evb'))}
+async function evidencePanel(id,el){
+ const ev=await api(`/incidents/${id}/evidence`);
+ el.innerHTML=`<h3>Preserved evidence · ${fmt(ev.created_at)}</h3><div class="wrap"><table><tr><th>File</th><th>Size</th><th>SHA-256</th></tr>${arr(ev,'files').map(f=>`<tr><td>${esc(f.name)}</td><td>${f.size_bytes} B</td><td class="hash">${esc(f.sha256.slice(0,24))}…</td></tr>`).join('')}</table></div><div class="bar" style="margin-top:14px"><button class="btn" id="vf">Verify integrity</button><a class="btn ghost" href="${BASE}/api/v1/incidents/${id}/evidence/download">Export evidence (.zip)</a></div><div id="vr"></div>`;
+ $('#vf').onclick=async()=>{const v=await api(`/incidents/${id}/evidence/verify`);$('#vr').innerHTML=v.verified?`<div class="okbox">Hash verified — ${esc(v.message)}</div>`:`<div class="okbox badbox">Evidence tampering detected — ${esc(v.message)}</div>`}}
+async function evidence(sel){
+ const l=arr(await api('/incidents?limit=200'),'incidents');sel=sel||l[0]?.incident_id;
+ shell('evidence','Export evidence',`<div class="bar"><select id="si">${l.map(i=>`<option value="${i.incident_id}" ${i.incident_id===sel?'selected':''}>${i.incident_id} · ${esc(i.rule_name)}</option>`).join('')||'<option>No incidents</option>'}</select></div><div id="ep" class="card">${sel?'':'<span class="sub">Evidence packages are created automatically when an incident is detected.</span>'}</div>`);
+ $('#si').onchange=e=>evidence(e.target.value);if(sel)evidencePanel(sel,$('#ep'))}
+function usersView(){
+ shell('users','User management',`<p class="sub">Sign-in and accounts are interface-only: the current backend has no user API, so this list lives in the page and resets on reload.</p><div class="bar"><button class="btn" id="au" style="margin-left:auto">Add user</button></div><div class="card wrap"><table><tr><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr>${users.map((u,i)=>`<tr><td>${esc(u.n)}</td><td>${esc(u.e)}</td><td>${u.r}</td><td><span style="color:var(--ok)">Active</span></td><td><button class="btn ghost sm" data-d="${i}">Remove</button></td></tr>`).join('')}</table></div>`);
+ $('#au').onclick=()=>{const n=prompt('Username');if(n){users.push({n,e:n+'@cebb.local',r:'Investigator'});usersView()}};
+ document.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{users.splice(b.dataset.d,1);usersView()})}
+async function settings(){
+ const [s,h,st]=await Promise.all([api('/settings'),api('/system/info'),api('/system/status')]);
+ const fld=(k,l,t='number')=>`<div class="f"><label>${l}</label><input type="${t}" name="${k}" value="${esc(s[k])}"></div>`;
+ shell('settings','Settings',`<div class="grid g2"><form class="card" id="sf"><h3>Runtime configuration</h3>${fld('retention_minutes','Retention window (minutes)')}${fld('correlation_interval_seconds','Correlation interval (seconds)')}${fld('collector_interval_seconds','Collector interval (seconds)')}<div class="f"><label>Monitored path</label><input type="text" value="${esc(s.monitored_paths)}" disabled></div><button class="btn">Save settings</button></form>
+ <div class="card"><h3>Host</h3><div>${esc(h.hostname)} · ${esc(h.os)}</div><div class="sub">CPU ${h.cpu_percent}% · Memory ${h.memory_percent}% · Boot ${fmt(h.boot_time)}</div><h3 style="margin-top:16px">Collectors</h3>${Object.entries(st.collectors||{}).map(([k,v])=>`<div><span class="dot" style="background:${v.enabled?'var(--ok)':'var(--mut)'}"></span>${k}</div>`).join('')}</div></div>`);
+ $('#sf').onsubmit=async e=>{e.preventDefault();const b={};new FormData(e.target).forEach((v,k)=>{if(v!=='')b[k]=+v});try{await api('/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});toast('Settings saved')}catch(x){toast('Save failed: '+x.message)}}}
+/* ---- router ---- */
+async function route(){
+ clearInterval(timer);const [, page='dashboard',a,b]=location.hash.slice(1).split('/');
+ if(page==='login'){authed=false;try{sessionStorage.removeItem('cebb')}catch(e){}return loginView()}
+ if(!authed)return loginView();
+ try{
+  if(page==='dashboard'){await dashboard();timer=setInterval(()=>{if(!document.activeElement||document.activeElement.tagName!=='BUTTON')dashboard()},10000)}
+  else if(page==='events')await events();else if(page==='incidents')await incidents(a||'');
+  else if(page==='incident')await incident(a,b||'overview');else if(page==='evidence')await evidence();
+  else if(page==='users')usersView();else if(page==='settings')await settings();else location.hash='#/dashboard';
+ }catch(e){shell(page,'Something went wrong',`<div class="card"><b>Couldn't load this page.</b><p class="sub">${esc(e.message)}</p><button class="btn" onclick="route()">Retry</button></div>`)}}
+addEventListener('hashchange',route);route();
+</script></body></html>
