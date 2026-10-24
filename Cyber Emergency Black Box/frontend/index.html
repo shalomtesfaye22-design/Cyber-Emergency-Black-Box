@@ -69,11 +69,10 @@ pre{background:#060c18;border:1px solid var(--line);border-radius:6px;padding:12
 </style></head><body>
 <svg width="0" height="0" style="position:absolute"><symbol id="sh" viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" fill="#1c4fd0" stroke="#6aa0ff" stroke-width="1.2"/><circle cx="12" cy="11" r="2.4" fill="#fff"/><path d="M12 13v4" stroke="#fff" stroke-width="1.6"/></symbol></svg>
 <div id="toast"></div><div id="root"></div>
-<script>
+ <script>
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt=t=>t?t.replace('T',' ').slice(0,19):'—',B=(c,t)=>`<span class="b ${c}">${esc(t??c)}</span>`;
 const ICON={login_success:'AUTH',login_failure:'AUTH',process_start:'PROC',process_stop:'PROC',file_created:'FILE',file_modified:'FILE',file_deleted:'FILE',network_connection:'NET'};
-const arr=(d,k)=>Array.isArray(d)?d:(d&&(d[k]||d.items||d.data||d.results))||[];
 const BASE=location.protocol==='file:'?'http://127.0.0.1:8000':'';let simRan=false,demo=false,timer=null,users=[{n:'admin',e:'admin@cebb.local',r:'Administrator'},{n:'investigator1',e:'investigator1@cebb.local',r:'Investigator'}];
 function toast(m){const d=document.createElement('div');d.textContent=m;$('#toast').append(d);setTimeout(()=>d.remove(),5000)}
 /* ---- demo data used only when the backend is unreachable ---- */
@@ -107,15 +106,15 @@ function loginView(){$('#root').innerHTML=`<div id="login"><div class="brand"><s
 /* ---- views ---- */
 async function dashboard(){
  const [s,ev,st,inc]=await Promise.all([api('/dashboard/summary'),api('/events?limit=500'),api('/system/status'),api('/incidents?limit=100')]);
- const list=arr(inc,'incidents'),open=list.filter(i=>i.status!=='CLOSED').length,evs=arr(ev,'events');
- let ts=evs.map(e=>+new Date(e.timestamp)).filter(t=>t==t),lo=ts.length?Math.min(...ts):0,hi=ts.length?Math.max(...ts,lo+1):1,n=12,bk=Array(n).fill(0);
+ const list=inc.incidents,open=list.filter(i=>i.status!=='CLOSED').length,evs=ev.events;
+ let ts=evs.map(e=>+new Date(e.timestamp)),lo=Math.min(...ts),hi=Math.max(...ts,lo+1),n=12,bk=Array(n).fill(0);
  ts.forEach(t=>bk[Math.min(n-1,Math.floor((t-lo)/(hi-lo)*n))]++);const mx=Math.max(...bk,1);
  const pts=bk.map((v,i)=>`${10+i*(380/(n-1))},${120-v/mx*100}`).join(' ');
  const by={};list.forEach(i=>by[i.rule_name]=(by[i.rule_name]||0)+1);const cols=['#ef4458','#2a6cf6','#22c58b','#f0a43a'];let acc=0,tot=list.length||1,arcs='';
  Object.values(by).forEach((v,i)=>{const f=v/tot*100;arcs+=`<circle r="15.9" cx="21" cy="21" fill="none" stroke="${cols[i%4]}" stroke-width="5" stroke-dasharray="${f} ${100-f}" stroke-dashoffset="${25-acc}"/>`;acc+=f});
  const on=Object.values(st.collectors||{}).filter(c=>c.enabled).length;
  shell('dashboard','Cyber security overview',`<div class="bar"><button class="btn" id="sim">Run attack simulation (SIM-001)</button><span class="sub"><span class="dot"></span>${s.monitoring_active?'Monitoring active':'Monitoring paused'} · uptime ${esc(s.uptime_human)}</span></div>
- <div class="grid g4"><div class="card"><h3>Total events</h3><div class="big">${(s.total_events||0).toLocaleString()}</div></div><div class="card"><h3>Open incidents</h3><div class="big" style="color:${open?'var(--crit)':'inherit'}">${open}</div></div><div class="card"><h3>Closed incidents</h3><div class="big">${list.length-open}</div></div><div class="card"><h3>System status</h3><div class="big" style="color:var(--ok);font-size:22px">${esc(st.status==='operational'?'Online':st.status)}</div><div class="sub">${on} collectors running</div></div></div>
+ <div class="grid g4"><div class="card"><h3>Total events</h3><div class="big">${s.total_events.toLocaleString()}</div></div><div class="card"><h3>Open incidents</h3><div class="big" style="color:${open?'var(--crit)':'inherit'}">${open}</div></div><div class="card"><h3>Closed incidents</h3><div class="big">${list.length-open}</div></div><div class="card"><h3>System status</h3><div class="big" style="color:var(--ok);font-size:22px">${esc(st.status==='operational'?'Online':st.status)}</div><div class="sub">${on} collectors running</div></div></div>
  <div class="grid g2" style="margin-top:14px"><div class="card"><h3>Events over the retention window</h3><svg viewBox="0 0 400 130" width="100%"><polyline points="${pts}" fill="none" stroke="#2a6cf6" stroke-width="2"/><polygon points="10,120 ${pts} 390,120" fill="#2a6cf633"/></svg></div>
  <div class="card"><h3>Incident types</h3><div style="display:flex;align-items:center;gap:16px"><svg viewBox="0 0 42 42" width="130"><circle r="15.9" cx="21" cy="21" fill="none" stroke="#1a2b49" stroke-width="5"/>${arcs}<text x="21" y="23" text-anchor="middle" fill="#fff" font-size="8">${list.length}</text></svg><div>${Object.entries(by).map(([k,v],i)=>`<div class="sub"><span style="color:${cols[i%4]}">●</span> ${esc(k)} (${v})</div>`).join('')||'<span class="sub">No incidents yet</span>'}</div></div></div></div>
  <div class="card" style="margin-top:14px"><h3>Recent incidents</h3>${incTable(list.slice(0,3))}</div>`);
@@ -124,7 +123,7 @@ function incTable(l){return l.length?`<div class="wrap"><table><tr><th>Incident<
 let F={q:'',t:'',s:'',h:false};
 async function events(){
  const q=new URLSearchParams({limit:500});if(F.t)q.set('event_type',F.t);if(F.s)q.set('severity',F.s);if(F.h)q.set('is_simulated','false');
- const d=await api('/events?'+q);let rows=arr(d,'events').filter(e=>!F.q||[e.user,e.process,e.target,e.action].join(' ').toLowerCase().includes(F.q.toLowerCase()));
+ const d=await api('/events?'+q);let rows=d.events.filter(e=>!F.q||[e.user,e.process,e.target,e.action].join(' ').toLowerCase().includes(F.q.toLowerCase()));
  const types=Object.keys(ICON),opt=(a,v)=>a.map(x=>`<option ${x===v?'selected':''}>${x}</option>`).join('');
  shell('events','Security events',`<div class="bar"><input type="text" id="fq" placeholder="Search user, process or target" value="${esc(F.q)}"><select id="ft"><option value="">All types</option>${opt(types,F.t)}</select><select id="fs"><option value="">All severities</option>${opt(['LOW','MEDIUM','HIGH','CRITICAL'],F.s)}</select><label class="chk" style="margin:0"><input type="checkbox" id="fh" ${F.h?'checked':''}>Hide simulated</label><button class="btn sm" id="csv" style="margin-left:auto">Export CSV</button></div>
  <div class="card wrap"><table><tr><th>Time (UTC)</th><th>Type</th><th>User</th><th>Process</th><th>Action / target</th><th>Severity</th><th>Source</th></tr>${rows.map((e,i)=>`<tr class="row" data-i="${i}"><td class="m">${fmt(e.timestamp)}</td><td>${esc(e.event_type)}</td><td>${esc(e.user)}</td><td>${esc(e.process)}</td><td>${esc(e.action||e.target)}</td><td>${B(e.severity)}</td><td>${e.is_simulated?B('SIM','SIMULATED'):B('REAL','REAL')}</td></tr>`).join('')||'<tr><td colspan=7 class="sub">No events match these filters.</td></tr>'}</table></div>`);
@@ -133,10 +132,10 @@ async function events(){
  document.querySelectorAll('tr.row').forEach(r=>r.onclick=()=>{const nx=r.nextElementSibling;if(nx&&nx.classList.contains('x')){nx.remove();return}const e=rows[r.dataset.i],t=document.createElement('tr');t.className='x';t.innerHTML=`<td colspan=7><pre>${esc(JSON.stringify(e,null,2))}</pre></td>`;r.after(t)});
  $('#csv').onclick=()=>{const h=['event_id','timestamp','event_type','severity','user','process','target','raw_hash'],c=[h.join(',')].concat(rows.map(e=>h.map(k=>JSON.stringify(e[k]??'')).join(',')));const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c.join('\n')],{type:'text/csv'}));a.download='cebb_events.csv';a.click()}}
 async function incidents(st=''){
- const all=arr(await api('/incidents?limit=200'),'incidents'),cnt=s=>all.filter(i=>!s||i.status===s).length,l=all.filter(i=>!st||i.status===st);
+ const all=(await api('/incidents?limit=200')).incidents,cnt=s=>all.filter(i=>!s||i.status===s).length,l=all.filter(i=>!st||i.status===st);
  shell('incidents','Incidents',`<div class="bar"><div class="pills">${[['','All'],['OPEN','Open'],['INVESTIGATING','Investigating'],['CLOSED','Closed']].map(p=>`<a href="#/incidents/${p[0]}" class="${p[0]===st?'on':''}">${p[1]} (${cnt(p[0])})</a>`).join('')}</div></div>${l.map(i=>`<div class="card inc" onclick="location.hash='#/incident/${i.incident_id}/overview'"><div><span class="sub">${i.incident_id}</span><b>${esc(i.rule_name)}</b><span class="sub">${esc(i.summary)}</span></div><div style="text-align:right">${B(i.severity)} ${B(i.status)}<div class="sub">${fmt(i.detection_time)}</div></div></div>`).join('')||'<p class="sub">No incidents with this status.</p>'}`)}
 async function incident(id,tab='overview'){
- const [i,tl]=await Promise.all([api('/incidents/'+id),api(`/incidents/${id}/timeline`)]),x=i.interpretation||{},cnt={};tl.events=arr(tl,'events');tl.events.forEach(e=>cnt[e.event_type]=(cnt[e.event_type]||0)+1);
+ const [i,tl]=await Promise.all([api('/incidents/'+id),api(`/incidents/${id}/timeline`)]),x=i.interpretation||{},cnt={};tl.events.forEach(e=>cnt[e.event_type]=(cnt[e.event_type]||0)+1);
  const li=a=>`<ul>${(a||[]).map(v=>`<li>${esc(v)}</li>`).join('')}</ul>`;
  const interp=`<h3>Summary</h3><p>${esc(x.summary)}</p><h3>Confirmed facts</h3>${li(x.confirmed_facts)}<h3>Detection assessment</h3><p>${esc(x.detection_assessment)}</p><h3>Recommended next steps</h3>${li(x.recommendations)}<div class="disc">${esc(x.disclaimer||'Automated analysis prototype. Human verification required.')}</div>`;
  let body='';
@@ -152,10 +151,10 @@ async function incident(id,tab='overview'){
  if(tab==='evidence')evidencePanel(id,$('#evb'))}
 async function evidencePanel(id,el){
  const ev=await api(`/incidents/${id}/evidence`);
- el.innerHTML=`<h3>Preserved evidence · ${fmt(ev.created_at)}</h3><div class="wrap"><table><tr><th>File</th><th>Size</th><th>SHA-256</th></tr>${arr(ev,'files').map(f=>`<tr><td>${esc(f.name)}</td><td>${f.size_bytes} B</td><td class="hash">${esc(f.sha256.slice(0,24))}…</td></tr>`).join('')}</table></div><div class="bar" style="margin-top:14px"><button class="btn" id="vf">Verify integrity</button><a class="btn ghost" href="${BASE}/api/v1/incidents/${id}/evidence/download">Export evidence (.zip)</a></div><div id="vr"></div>`;
+ el.innerHTML=`<h3>Preserved evidence · ${fmt(ev.created_at)}</h3><div class="wrap"><table><tr><th>File</th><th>Size</th><th>SHA-256</th></tr>${ev.files.map(f=>`<tr><td>${esc(f.name)}</td><td>${f.size_bytes} B</td><td class="hash">${esc(f.sha256.slice(0,24))}…</td></tr>`).join('')}</table></div><div class="bar" style="margin-top:14px"><button class="btn" id="vf">Verify integrity</button><a class="btn ghost" href="${BASE}/api/v1/incidents/${id}/evidence/download">Export evidence (.zip)</a></div><div id="vr"></div>`;
  $('#vf').onclick=async()=>{const v=await api(`/incidents/${id}/evidence/verify`);$('#vr').innerHTML=v.verified?`<div class="okbox">Hash verified — ${esc(v.message)}</div>`:`<div class="okbox badbox">Evidence tampering detected — ${esc(v.message)}</div>`}}
 async function evidence(sel){
- const l=arr(await api('/incidents?limit=200'),'incidents');sel=sel||l[0]?.incident_id;
+ const l=(await api('/incidents?limit=200')).incidents;sel=sel||l[0]?.incident_id;
  shell('evidence','Export evidence',`<div class="bar"><select id="si">${l.map(i=>`<option value="${i.incident_id}" ${i.incident_id===sel?'selected':''}>${i.incident_id} · ${esc(i.rule_name)}</option>`).join('')||'<option>No incidents</option>'}</select></div><div id="ep" class="card">${sel?'':'<span class="sub">Evidence packages are created automatically when an incident is detected.</span>'}</div>`);
  $('#si').onchange=e=>evidence(e.target.value);if(sel)evidencePanel(sel,$('#ep'))}
 function usersView(){
@@ -180,4 +179,6 @@ async function route(){
   else if(page==='users')usersView();else if(page==='settings')await settings();else location.hash='#/dashboard';
  }catch(e){shell(page,'Something went wrong',`<div class="card"><b>Couldn't load this page.</b><p class="sub">${esc(e.message)}</p><button class="btn" onclick="route()">Retry</button></div>`)}}
 addEventListener('hashchange',route);route();
-</script></body></html>
+  </script>
+ </body>
+</html>
