@@ -51,9 +51,15 @@ async def client(db_session) -> AsyncGenerator[httpx.AsyncClient, None]:
     app.state.started_time = 0
     app.state.collectors = []
     app.state.correlation_engine = None
+    app.state.auth_sessions = {}
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as ac:
+        setup = await ac.post(
+            "/api/v1/auth/setup",
+            json={"password": "Test-Password-42!"},
+        )
+        assert setup.status_code == 200
         yield ac
 
     app.dependency_overrides.clear()

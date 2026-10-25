@@ -1,13 +1,16 @@
 """Application configuration and settings endpoints."""
 
+import json
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.api.schemas.common import ok
 from backend.database import crud
 from backend.database.engine import get_db
+from backend.api.routes.auth import require_authenticated
+from backend.config import settings
 
-router = APIRouter(prefix="/settings", tags=["settings"])
+router = APIRouter(prefix="/settings", tags=["settings"], dependencies=[Depends(require_authenticated)])
 
 PERMITTED_KEYS: set[str] = {
     "retention_minutes",
@@ -21,7 +24,17 @@ VALID_COLLECTORS: set[str] = {"login", "process", "file", "network", "system_inf
 @router.get("")
 async def get_all_settings(db: AsyncSession = Depends(get_db)):
     """Retrieve runtime settings."""
-    return ok(await crud.get_settings(db))
+    raw = await crud.get_settings(db)
+    result: dict[str, Any] = {}
+    for key, value in raw.items():
+        if key in {"master_password_hash", "master_password_salt"}:
+            continue
+        try:
+            result[key] = json.loads(value)
+        except (TypeError, json.JSONDecodeError):
+            result[key] = value
+    result["monitored_paths"] = settings.monitored_paths
+    return ok(result)
 
 
 @router.put("")

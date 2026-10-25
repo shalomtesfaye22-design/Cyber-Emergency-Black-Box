@@ -6,8 +6,9 @@ from backend.api.schemas.common import ok
 from backend.database.engine import get_db
 from backend.models.event import EventCreate, event_dict
 from backend.services.event_service import EventService
+from backend.api.routes.auth import require_authenticated
 
-router = APIRouter(prefix="/events", tags=["events"])
+router = APIRouter(prefix="/events", tags=["events"], dependencies=[Depends(require_authenticated)])
 
 
 @router.post("")

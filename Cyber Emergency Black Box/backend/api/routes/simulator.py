@@ -1,11 +1,12 @@
 """Event simulator endpoints."""
 
 import asyncio
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from backend.api.schemas.common import ok
+from backend.api.routes.auth import require_authenticated
 from simulator.scenarios.account_compromise import AccountCompromiseScenario
 
-router = APIRouter(prefix="/simulator", tags=["simulator"])
+router = APIRouter(prefix="/simulator", tags=["simulator"], dependencies=[Depends(require_authenticated)])
 
 
 @router.post("/run")

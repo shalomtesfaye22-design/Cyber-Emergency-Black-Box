@@ -56,4 +56,8 @@ class IncidentService:
     ) -> list[dict[str, Any]]:
         """Retrieve chronological events for an incident timeline."""
         events = await crud.get_events_for_incident(session, incident_id)
-        return [event_dict(x) for x in events]
+        timeline = [event_dict(x) for x in events]
+        # Every linked event in this endpoint contributed to the correlation match.
+        for event in timeline:
+            event["is_trigger"] = True
+        return timeline

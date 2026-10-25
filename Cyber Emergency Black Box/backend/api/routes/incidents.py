@@ -10,8 +10,9 @@ from backend.evidence.manager import EvidenceManager
 from backend.models.incident import IncidentStatusUpdate
 from backend.reports.html_report import generate_html_report
 from backend.services.incident_service import IncidentService
+from backend.api.routes.auth import require_authenticated
 
-router = APIRouter(prefix="/incidents", tags=["incidents"])
+router = APIRouter(prefix="/incidents", tags=["incidents"], dependencies=[Depends(require_authenticated)])
 
 
 @router.get("")

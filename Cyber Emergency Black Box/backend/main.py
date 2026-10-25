@@ -25,6 +25,7 @@ from backend.api.routes.evidence import router as evidence_router
 from backend.api.routes.system import router as system_router
 from backend.api.routes.settings import router as settings_router
 from backend.api.routes.simulator import router as simulator_router
+from backend.api.routes.auth import router as auth_router
 
 # Configure logging
 logging.basicConfig(
@@ -153,6 +154,7 @@ app.include_router(incidents_router, prefix=API_PREFIX)
 app.include_router(evidence_router, prefix=API_PREFIX)
 app.include_router(settings_router, prefix=API_PREFIX)
 app.include_router(simulator_router, prefix=API_PREFIX)
+app.include_router(auth_router, prefix=API_PREFIX)
 
 # Mount frontend static files if directory exists
 if settings.frontend_dir.exists():

@@ -1,12 +1,13 @@
 """Evidence preservation and verification endpoints."""
 
 from pathlib import Path
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from backend.api.schemas.common import ok
 from backend.evidence.manager import EvidenceManager
+from backend.api.routes.auth import require_authenticated
 
-router = APIRouter(prefix="/incidents", tags=["evidence"])
+router = APIRouter(prefix="/incidents", tags=["evidence"], dependencies=[Depends(require_authenticated)])
 
 
 @router.get("/{incident_id}/evidence")
