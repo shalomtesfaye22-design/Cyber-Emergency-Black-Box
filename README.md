@@ -32,7 +32,7 @@ CEBB is an academic prototype. It is not antivirus software, a production EDR pr
 
 ## Project Demonstration Video
 
-**Video link:** 
+**Video link: https://youtu.be/lSWsvyhBHec** 
 
 ## Requirements
 
