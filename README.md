@@ -20,22 +20,19 @@ CEBB is an academic prototype. It is not antivirus software, a production EDR pr
 
 ## Team Information
 
-The repository does not currently include verified team member names or CTC IDs. Replace the placeholders below with the team's official details before final submission.
+| Full name | CTC ID | Contribution |
+|---|---|---|
+| `Shalom Tesfaye` | `CTC-2610-26` | `Team Leader` |
+| `Masud Mohammedsani` | `CTC-2351-26` | `Backend & QA` |
+| `Chera Habtamu` | `CTC-2240-26` | `Backend` |
+| `Abdi Misgana` | `CTC-7582-26` | `Frontend Integration` |
+| `Eyoel Yirga` | `CTC-6159-26` | `QA & Release Manager` |
+| `Amanuel Alemayehu` | `CTC-3519-26` | `UI/UX Designer` |
 
-| Team member | Full name | CTC ID | Contribution |
-|---|---|---|---|
-| Member 1 | `[Full name]` | `[CTC ID]` | `[Project role / contribution]` |
-| Member 2 | `[Full name]` | `[CTC ID]` | `[Project role / contribution]` |
-| Member 3 | `[Full name]` | `[CTC ID]` | `[Project role / contribution]` |
-| Member 4 | `[Full name]` | `[CTC ID]` | `[Project role / contribution]` |
-
-Add or remove rows to match the complete project team. Do not publish guessed names or IDs.
 
 ## Project Demonstration Video
 
-**Video link:** _Placeholder — add the team's approved demonstration video URL here._
-
-Suggested demo: start CEBB, set up the local master password, run SIM-001 from the dashboard, inspect the resulting incident and timeline, verify the evidence package, then open and print the forensic report.
+**Video link:** 
 
 ## Requirements
 
@@ -112,6 +109,3 @@ Tests use an in-memory SQLite database and cover API workflows, authentication c
 
 CEBB records security metadata such as usernames, process names, file paths, and network addresses; it does not intentionally collect file contents, keystrokes, passwords, or private messages. Keep `data/` and `evidence/` local and out of Git. Use the software only on systems you own or are authorized to monitor. Review automated findings with the account owner and original system records.
 
-## Project Repository
-
-[GitHub — Cyber Emergency Black Box](https://github.com/shalomtesfaye22-design/Cyber-Emergency-Black-Box)
